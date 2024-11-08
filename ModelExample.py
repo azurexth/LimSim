@@ -16,12 +16,18 @@ file_paths = {
     "CarlaTown05": "networkFiles/CarlaTown/Town05.xodr",
     "CarlaTown06": "networkFiles/CarlaTown/Town06.xodr",
     "CarlaTown07": "networkFiles/CarlaTown/Town07.xodr",
+    "m510": "networkFiles/M510_FTX_TrafficSignals_Simple.xodr",
+    "m210": "networkFiles/M210_FTX_FourWay_Protected_Left.xodr",
+    "m211": "networkFiles/M211_FTX_FourWay_Permited_Left.xodr",
+    "m244": "networkFiles/M244_FTX_Highway_Consecutive_Merges.xodr",
+    "m480": "networkFiles/M480_FTX_Complex_Junction_noSignals.xodr",
+    "m422": "networkFiles/M422_FTX_suburban_EuroNcap_junction.xodr",
 }
 
 
-def run_model(net_file, run_time, demands):
+def run_model(net_file, run_time, demands, seed=0):
     model = Model(net_file, run_time, demands)
-    model.start()
+    model.start(seed)
     model.updateVeh()
     print(
         "-" * 10,
@@ -89,10 +95,19 @@ def replay_model(net_file):
 
 
 if __name__ == "__main__":
-    net_file = file_paths["CarlaTown01"]
+    
+    if len(sys.argv) < 4:
+        print("Usage: python ModelExample.py <net_file_key> <demands_file> <seed> [replay]")
+        sys.exit(1)
+
+    net_file_key = sys.argv[1]
+    demands_file = sys.argv[2]
+    seed = sys.argv[3]
+
+    net_file = file_paths[net_file_key]
     # Two modes are avialable for simulation
     # The replay mode requires reading database information
-    if len(sys.argv) > 1 and sys.argv[1] == "replay":
+    if len(sys.argv) > 4 and sys.argv[4] == "replay":
         replay_model(net_file)
     else:
-        run_model(net_file, run_time=1000, demands="demands.txt")
+        run_model(net_file, run_time=80, demands=demands_file, seed=seed)

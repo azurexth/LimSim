@@ -1,12 +1,29 @@
 import peewee as pw
+
 import os
 import base64
 import pickle
 from dataclasses import dataclass
 
+# This module provides a database interface for storing and retrieving simulation data using SQLite and Peewee ORM.
 
-dbName = "simulationDatabase.db"
+# Classes:
+#     VehicleInfo: A dataclass representing vehicle information.
+#     Database: A class for managing the SQLite database operations.
+#     VehicleDB: A Peewee model representing the vehicle database table.
+#     tlsDB: A Peewee model representing the traffic light system database table.
 
+# Functions:
+#     Database.__init__: Initializes the Database instance and sets up the SQLite database connection.
+#     Database.initDB: Initializes the database by creating the necessary tables.
+#     Database.updateDB: Updates the database with the current vehicle and traffic light system data.
+#     Database.getRunTime: Retrieves the maximum time step from the VehicleDB.
+#     Database.getDB: Retrieves the vehicle and traffic light system data for a specific time step.
+#     Database.closeDB: Closes the database connection.
+
+dbName = "simulationDatabase1.db"
+
+# dbName = "simulationDatabase.db"
 
 @dataclass
 class VehicleInfo:
@@ -38,8 +55,8 @@ class VehicleInfo:
 
 
 class Database:
-    def __init__(self) -> None:
-        self.db = pw.SqliteDatabase(dbName)
+    def __init__(self, db_Name = dbName) -> None:
+        self.db = pw.SqliteDatabase(db_Name)
 
     def initDB(self):
         if os.path.exists(dbName):
@@ -90,9 +107,29 @@ class Database:
         newTls.save()
 
     def getRunTime(self):
+        """
+        Retrieves the maximum time step from the VehicleDB.
+
+        Returns:
+            int: The maximum time step value from the VehicleDB.
+        """
         return VehicleDB.select(pw.fn.Max(VehicleDB.timeStep)).scalar()
 
     def getDB(self, timeStep: int):
+        """
+        Retrieves vehicle and traffic light information from the database for a given time step.
+
+        Args:
+            timeStep (int): The time step for which to retrieve the data.
+
+        Returns:
+            tuple: A tuple containing two elements:
+                - vehInfo: The vehicle information decoded from the database.
+                - tls: The traffic light system information decoded from the database.
+
+        Raises:
+            Exception: If there is an error connecting to the database or decoding the data.
+        """
         try:
             self.db.connect()
         except:
@@ -106,7 +143,14 @@ class Database:
         return vehInfo, tls
 
     def closeDB(self):
-        self.db.close()
+        try:
+            if self.db:
+                self.db.close()
+                print("Database connection closed successfully.")
+            else:
+                print("Database connection is already closed or was never opened.")
+        except Exception as e:
+            print(f"An error occurred while closing the database: {e}")
 
 
 class VehicleDB(pw.Model):

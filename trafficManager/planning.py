@@ -163,7 +163,8 @@ def planning(
             trajectory = veh.planner.planning(vehRunning, frequency)
             if veh.laneId not in veh.route:
                 distances, previous_nodes = dijkstra(netInfo.graph, veh.laneId)
-                veh.route = get_shortest_path(previous_nodes, veh.laneId, veh.route[-1])
+                if veh.route:
+                    veh.route = get_shortest_path(previous_nodes, veh.laneId, veh.route[-1])
             # record planning trajectory
             veh.planTra = Trajectory()
             for i in range(0, len(trajectory)):

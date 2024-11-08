@@ -19,3 +19,6 @@ class TrafficLight(object):
             self.currentState = "y"
         elif time_temp > self.time_green + self.time_yellow:
             self.currentState = "r"
+            
+        # set all traffic light to green
+        self.currentState = "g"

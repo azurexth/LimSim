@@ -4,7 +4,6 @@ import heapq
 import numpy as np
 from scipy.spatial import distance
 from lxml import etree
-from scipy.spatial import ConvexHull
 from simModel.common.opendriveparser import parse_opendrive
 from simModel.common.opendriveparser.elements.road import Road
 from simModel.common.opendriveparser.elements.roadLanes import Lane, LaneSection
@@ -311,6 +310,8 @@ class NetworkBuild:
 
             points = list(itertools.chain(*lines))
             points = np.array([list(p) for p in points])
+            import matplotlib.pyplot as plt
+            from scipy.spatial import ConvexHull
 
             hull = ConvexHull(points)
             boundary_indices = hull.vertices
@@ -667,10 +668,13 @@ class NetworkBuild:
                     next_direction = self.lanes[lane_next_id].direction
                     break
             # tcf may change in next road
-            tcf = self.getTcfNextRoad(
-                roadId, direction, road_next_id, next_direction, tcf, yaw
-            )
-            roadId, laneId, direction = road_next_id, lane_next_id, next_direction
+            try:
+                tcf = self.getTcfNextRoad(
+                    roadId, direction, road_next_id, next_direction, tcf, yaw
+                )
+                roadId, laneId, direction = road_next_id, lane_next_id, next_direction
+            except:
+                pass
         [x, y, hdg] = self.getPosition(roadId, direction, scf, tcf, yaw)
         return roadId, laneId, direction, x, y, hdg, scf, tcf
 

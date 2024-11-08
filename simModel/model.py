@@ -41,12 +41,12 @@ class Model:
         self.simPause = SimPause()
         self.db = Database()
 
-    def start(self):
+    def start(self,seed=0):
         """
         Initializes the simulation by generating the initial vehicle flow,
         routing lanes for the vehicles, creating traffic lights, and initializing the database.
         """
-        self.getDemand()  # init flow
+        self.getDemand(seed)  # init flow
         self.route = routingLane(self.netInfo, self.vehDemand)
         self.netInfo.createTrafficLight(self.frequency)
         self.db.initDB()
@@ -68,9 +68,12 @@ class Model:
         veh.planYawQ = veh.planTra.yawQ
         veh.planRoadIdQ = veh.planTra.roadIdQ
 
-    def getVehFlow(self, period):
+    def getVehFlow(self, period, seed=0):
         """Generates vehicle flow for a given period by reading demand data from a file."""
-        random.seed(0)
+        # 这行代码设置了随机数生成器的种子为 0，以确保每次运行时生成的随机数序列相同，从而使结果可重复。
+        random.seed(seed)
+        print("seed:",seed)
+        # carFlow 是一个空字典，用于存储生成的车辆信息。V_MIN 和 V_MAX 是车辆速度的最小值和最大值，初始值均为 0。
         carFlow = dict()
         V_MIN, V_MAX = 0, 0
         infilie = open(self.demands)
@@ -88,6 +91,9 @@ class Model:
             lampda = qr / 3600
             arrivalTime = 0
             length, width = 5.0, 2.0
+            # 在这个循环中，代码生成每辆车的到达时间 arrivalTime 和初始速度 initVel。
+            # timeHeadway 是车辆之间的时间间隔，通过指数分布生成。
+            # 然后，创建一个 Vehicle 实例，并将其添加到 carFlow 字典中。
             while arrivalTime < period:
                 # generate arrival time
                 timeHeadway = round(-1 / lampda * math.log(random.random()), 2)
@@ -107,7 +113,7 @@ class Model:
             demand = infilie.readline()
         return carFlow
 
-    def getDemand(self):
+    def getDemand(self,seed=0):
         """
         Retrieves the vehicle demand for a given period of time.
 
@@ -116,7 +122,7 @@ class Model:
         Finally, it updates the `vehDemand` dictionary with the vehicles that have an arrival time greater than the current time step.
         """
         period = self.run_time * 0.3
-        carFlow = self.getVehFlow(period)
+        carFlow = self.getVehFlow(period,seed)
         for t in np.arange(period):
             for vehId, veh in carFlow.items():
                 if vehId not in self.vehDemand and veh.arrivalTime > t:
@@ -212,12 +218,48 @@ class Model:
                 return nearVehId
 
     def replayMoveStep(self):
+        """
+        Advances the simulation by one time step. If the run time is not set, 
+        it retrieves the run time from the database.
+
+        Attributes:
+            timeStep (int): The current time step of the simulation.
+            run_time (int): The total run time of the simulation.
+            db (Database): The database instance to retrieve the run time from.
+        """
         self.timeStep += 1
         if not self.run_time:
             self.run_time = self.db.getRunTime()
 
     def replayUpdateVeh(self):
+        """
+        Updates the vehicle information for the current simulation time step.
+
+        This method retrieves vehicle and traffic light information from the database,
+        updates the ego vehicle and surrounding vehicles, and updates the scene and 
+        rendering queue accordingly.
+
+        Steps:
+        1. Calculate the current simulation time.
+        2. Retrieve vehicle and traffic light information from the database.
+        3. Update the running vehicles dictionary.
+        4. Update the ego vehicle based on its current state.
+        5. If the ego vehicle is running or has arrived at the destination:
+            - Update evaluation data if the ego vehicle is running.
+            - Update the scene and surrounding vehicles.
+            - Retrieve plot information.
+            - Add the vehicle information and simulation time to the render queue.
+        6. Update the focus position.
+
+        Exceptions:
+        - If there is an error retrieving data from the database, the method returns early.
+
+        Returns:
+        None
+        """
+        # 1. Calculate the current simulation time.
         self.simTime = self.timeStep / self.frequency
+        # 2. Retrieve vehicle and traffic light information from the database.
         try:
             vehInfo, tlsInfo = self.db.getDB(self.timeStep)
         except:
@@ -250,6 +292,7 @@ class Model:
         self.updateFocusPos()
 
     def destroy(self):
+        self.db.closeDB()
         time.sleep(2)
         if self.plotEngine:
             self.plotEngine.gui.destroy()
