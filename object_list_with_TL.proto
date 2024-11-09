@@ -1,0 +1,197 @@
+// Copyright (c) 2021-2024 Foretellix Ltd. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+// compliance with the License. You may obtain a copy of the License at
+//                      http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software distributed under the License
+// is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied. See the License for the specific language governing permissions and limitations under the
+// License.
+
+syntax = "proto3";
+package ftx_re.proto.object_list;
+
+message Data3d {
+  double x = 1; 
+  double y = 2; 
+  double z = 3; 
+}
+
+// Rough classification of objects, if perception can provide - extend as needed
+// Detailed classification can be provided using the Object custom-data array
+
+enum ObjectKind{
+  KIND_OBJECT = 0;    // Unclassified object
+  KIND_PERSON = 2;
+  KIND_BICYCLE = 3;
+  KIND_CAR = 4;
+  KIND_TRUCK = 5;
+  KIND_TRAILER = 6;
+  KIND_SIGN = 10;   // What about traffic cones, other identifiable obstacles
+}
+
+message BoundingBox {
+  // An 8 point vector
+  // Order convention:
+  //    bottom-front-left, bottom-front-right, bottom-back-right, bottom-back-left
+  //    top-front-left, top-front-right, top-back-right, top-back-left
+  repeated Data3d points = 1; // (x,y,z) coordinates in meters
+}
+
+message Pair {
+  string key = 1;
+  string value = 2;
+}
+
+message Object {
+  // Object is anything detected by perception, except lane markings
+
+  // tracking_id is a unique identifier for the object identity, not to be reused within a trace
+  string tracking_id = 2;
+  ObjectKind kind = 3;
+  Data3d position = 4; // (x,y,z) coordinates in meters
+
+  // Velocity, acceleration, jerk and angular_speed data are optional and can be omitted.
+  // For moving objects these properties can be computed from position data
+  Data3d velocity = 5;         //  in m/s
+  Data3d acceleration = 6;     //  in m/s^2
+  Data3d jerk = 7;             // in m/s^3
+  Data3d angular_speed = 8;    // yaw rete of change in rad/s
+
+  // Only yaw is mandatory for moving objects - all angles can be omitted for static objects
+  double yaw = 10;             // in rad
+  double pitch = 11;           // in rad
+  double roll = 12;            // in rad
+
+  // Lane number, if object on a road, optional
+  // Lane numbering is relative to the ego:
+  // 0 - same as ego
+  // -1, -2 - slower than ego lane (right of ego in the US)
+  // 1, 2 - faster than ego lane (left of ego in the US)
+  // 100 represents uninitialized field
+  int32 lane = 15;
+  double position_in_lane = 16;  // in meters, measured from center line, positive direction is toward faster lane
+
+  // In case bounding box data is omitted
+  double length = 17; // in meters
+  double width = 18;  // in meters
+  double height = 19; // in meters
+
+  // Bounding box data is optional
+  // if present, length width and height are computed using bounding box data
+  BoundingBox bbox = 20;
+
+  // Custom data passes object specific information
+  // Data used for checking, coverage collection and in support of custom modifiers
+  repeated Pair custom_data = 21;
+  string description = 22; // description of the object type, refinement of the object kind field
+}
+
+
+enum LaneKind {
+  // Provide kind if known from perception
+  LANE_UNKNOWN = 0;
+  LANE_FORWARD_DRIVING = 1;
+  LANE_ONCOMING_DRIVING = 2;
+  LANE_ANY_DRIVING = 3;       // E.g. lane in junction, parking lot
+  LANE_SHOULDER = 4;          // Any non-drivable lane
+}
+
+enum LaneBoundaryKind {
+  // Provide kind if known from perception
+  BOUNDARY_UNKNOWN = 0;
+  BOUNDARY_SOLID = 1;   // solid line or divider - no passing
+  BOUNDARY_DASHED = 2;  // passing allowed
+}
+
+enum TrafficLightState {
+  TL_STATE_UNKNOWN = 0;      // Unknown state
+  TL_STATE_INACTIVE = 1;      // Light is off
+  TL_STATE_STOP_SIGN = 2;     // Light is flashing red (in US) - like a stop sign
+  TL_STATE_YIELD_SIGN = 3;    // Light is flashing yellow (US) - like a yield sign, also flashing yellow arrow
+  TL_STATE_GO = 4;            // Green light, unprotected (no arrow)
+  TL_STATE_PROTECTED_GO = 5;  // Green arrow
+  TL_STATE_STOP = 6;          // Red light
+  TL_STATE_SLOW = 7;          // Yellow light
+  TL_STATE_CHANGE_TO_GO = 8;  // Light is about to turn green (red and yellow together in IL)
+  TL_STATE_CHANGE_TO_SLOW = 9; // Light is about to turn yellow (flashing green in IL)
+}
+
+enum TrafficLightDirection {
+  TL_DIRECTION_UNKNOWN = 0;
+  TL_DIRECTION_ALL = 1;
+  TL_DIRECTION_STRAIGHT = 2;
+  TL_DIRECTION_STRAIGHT_AND_LEFT = 3;
+  TL_DIRECTION_STRAIGHT_AND_RIGHT = 4;
+  TL_DIRECTION_LEFT = 5;
+  TL_DIRECTION_RIGHT = 6;
+  TL_DIRECTION_U_TURN = 7;
+}
+
+enum TrafficLightType {
+  TL_TYPE_UNKNOWN = 0;
+  TL_TYPE_VEHICLE = 1;
+  TL_TYPE_PED = 2;
+  TL_TYPE_BICYCLE = 3;
+  TL_TYPE_RAILROAD = 4;
+}
+
+message LaneBoundary {
+  LaneBoundaryKind kind = 1;
+  Data3d boundary = 2; // x,y,z coordinate of the closest point on the boundary
+  double distance = 3; // lateral distance in meters from the boundary
+}
+
+message Lane {
+  // Lane data from marking
+  // lane ID: 0 is ego lane,
+  //          1 is adjacent faster lane, 2, 3 are faster still
+  //          -1 is adjacent slower lane, -2, -3 are slower still
+  int32 id = 1;
+  LaneKind kind = 2;
+  Data3d center = 3; // (x,y,z) coordinates in meters
+  double width = 4;  // length in meters
+  LaneBoundary boundary_fast = 5;   // Boundary with faster lane (left in LHS driving)
+  LaneBoundary boundary_slow = 6;   // Boundary with slower lane (right in LHS driving)
+}
+
+message TrafficLight {
+  // Traffic light state in specific time slot - same TL ID can show up multiple times, once for each direction
+  // Traffic light ID needs to map to the lane the vehicle is on
+  // Traffic light direction needs to match the direction vehicle is traveling to
+  string id = 1;  // TL identifier on map
+  TrafficLightDirection direction = 2;  // relevance to vehicle direction
+  TrafficLightState state = 3;    // Current TL state
+  TrafficLightType type = 4;
+}
+
+message TimeSlot {
+  uint32 time = 1; // in ms relative to start time
+  Object ego = 2;
+  repeated Object objects = 3;
+  repeated Lane lanes = 4; // Leave empty unless lane detection is being used
+  repeated TrafficLight traffic_lights = 5;  // TL states for the time slot
+}
+
+message GlobalPosition {
+  //  WGS84 LLA format (e.g. GPS)
+  double latitude = 1;
+  double longitude = 2;
+  double altitude = 3;
+}
+
+message LocalFrameOriginPosition {
+  // Used to position the local frame origin and rotation with respect to the global frame
+  GlobalPosition lla = 1;
+  double yaw = 2;
+}
+
+message Root {
+  bool is_absolute = 1;   // When true - all coordinates are global, if false all coordinates are ego relative
+  uint32 step_time = 2; // time in ms between cycles
+  double start_time = 3; // The absolute time in ms in which the data starts
+  repeated TimeSlot times = 4; // times start at time 0 and are relative to start_time
+  LocalFrameOriginPosition local_frame = 5;  // localization data of the local frame in the world
+  int32 version = 10;
+  double origin_start_time = 11;  // The original-global start time (before zeroing it out)
+}
