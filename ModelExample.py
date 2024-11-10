@@ -25,8 +25,8 @@ file_paths = {
 }
 
 
-def run_model(net_file, run_time, demands, seed=0):
-    model = Model(net_file, run_time, demands)
+def run_model(net_file, run_time, demands, seed=0, output_dir=""):
+    model = Model(net_file, run_time, demands, output_dir, seed)
     model.start(seed)
     model.updateVeh()
     print(
@@ -97,17 +97,18 @@ def replay_model(net_file):
 if __name__ == "__main__":
     
     if len(sys.argv) < 4:
-        print("Usage: python ModelExample.py <net_file_key> <demands_file> <seed> [replay]")
+        print("Usage: python ModelExample.py <net_file_key> <demands_file> <seed> <sim_time> [replay]")
         sys.exit(1)
 
     net_file_key = sys.argv[1]
     demands_file = sys.argv[2]
     seed = sys.argv[3]
+    sim_time = sys.argv[4]
 
     net_file = file_paths[net_file_key]
     # Two modes are avialable for simulation
     # The replay mode requires reading database information
-    if len(sys.argv) > 4 and sys.argv[4] == "replay":
+    if len(sys.argv) > 5 and sys.argv[5] == "replay":
         replay_model(net_file)
     else:
-        run_model(net_file, run_time=80, demands=demands_file, seed=seed)
+        run_model(net_file, run_time=int(sim_time), demands=demands_file, seed=int(seed), output_dir="")

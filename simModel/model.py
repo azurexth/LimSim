@@ -17,14 +17,28 @@ from trafficManager.evaluation import ScoreCalculator
 class Model:
 
     def __init__(
-        self, netFile: str, run_time: int = None, demands: str = None, egoID: int = -1
+        self, netFile: str, run_time: int = None, demands: str = None, output_dir = "", seed = 0, egoID: int = -1
     ) -> None:
+        
+        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
         print(
             "-" * 10,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            time_now,
             "model initializes ...",
             "-" * 10,
         )
+        # create a name with netfile, runtime, demands, system time
+        db_name = netFile.split("/")[-1].split(".")[0] + "_SimTime" + str(run_time) + "_" + demands.split("/")[-1].split(".")[0] + "_Seed" + str(seed) + "_" + time_now
+        # replace all the special characters with "_"
+        db_name = "".join([c if c.isalnum() else "_" for c in db_name])
+        # add the output_dir as directory, add / or \ based on the OS
+        if output_dir:  
+            if output_dir[-1] != "/" and output_dir[-1] != "\\":
+                output_dir += "/"
+        db_name = output_dir + db_name + ".db"
+        print(db_name)
+
         self.run_time = run_time
         self.demands = demands
         self.timeStep = 0
@@ -39,7 +53,7 @@ class Model:
         self.renderQueue = RenderQueue(10)
         self.focusPos = FocusPos()
         self.simPause = SimPause()
-        self.db = Database()
+        self.db = Database(db_name)
 
     def start(self,seed=0):
         """

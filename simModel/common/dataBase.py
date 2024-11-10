@@ -21,9 +21,6 @@ from dataclasses import dataclass
 #     Database.getDB: Retrieves the vehicle and traffic light system data for a specific time step.
 #     Database.closeDB: Closes the database connection.
 
-dbName = "simulationDatabase1.db"
-
-# dbName = "simulationDatabase.db"
 
 @dataclass
 class VehicleInfo:
@@ -52,15 +49,36 @@ class VehicleInfo:
     planAccQ: list[float]
     planYawQ: list[float]
     planRoadIdQ: list[str]
+    
+
+
+class VehicleDB(pw.Model):
+    timeStep = pw.IntegerField()
+    info = pw.TextField()
+
+    class Meta:
+        database = None  # 占位符，稍后动态设置
+
+
+class tlsDB(pw.Model):
+    timeStep = pw.IntegerField()
+    info = pw.TextField()
+
+    class Meta:
+        database = None  # 占位符，稍后动态设置
 
 
 class Database:
-    def __init__(self, db_Name = dbName) -> None:
+
+    def __init__(self, db_Name="simulationDatabase.db") -> None:
         self.db = pw.SqliteDatabase(db_Name)
+        self.db_Name = db_Name
+        VehicleDB._meta.database = self.db  # 动态设置数据库
+        tlsDB._meta.database = self.db  # 动态设置数据库
 
     def initDB(self):
-        if os.path.exists(dbName):
-            os.remove(dbName)
+        if os.path.exists(self.db_Name):
+            os.remove(self.db_Name)
         self.db.connect()
         self.db.create_tables([VehicleDB, tlsDB])
 
@@ -151,19 +169,3 @@ class Database:
                 print("Database connection is already closed or was never opened.")
         except Exception as e:
             print(f"An error occurred while closing the database: {e}")
-
-
-class VehicleDB(pw.Model):
-    timeStep = pw.IntegerField()
-    info = pw.TextField()
-
-    class Meta:
-        database = pw.SqliteDatabase(dbName)
-
-
-class tlsDB(pw.Model):
-    timeStep = pw.IntegerField()
-    info = pw.TextField()
-
-    class Meta:
-        database = pw.SqliteDatabase(dbName)
